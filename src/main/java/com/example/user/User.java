@@ -15,9 +15,6 @@ public class User {
 
     private String name;
 
-//    @OneToMany(mappedBy="user")
-//    private Set<Cart> cart;
-
     public Long getId() {
         return id;
     }
@@ -34,11 +31,4 @@ public class User {
         this.name = name;
     }
 
-//    public Set<Cart> getCart() {
-//        return cart;
-//    }
-//
-//    public void setCart(Set<Cart> cart) {
-//        this.cart = cart;
-//    }
 }
