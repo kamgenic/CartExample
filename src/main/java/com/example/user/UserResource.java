@@ -1,66 +1,67 @@
 package com.example.user;
 
 import com.example.cart.CartNotFoundException;
-import com.example.cart.CartRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import redis.clients.jedis.Jedis;
 
-import java.net.URI;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 public class UserResource {
 
-	@Autowired
-	private UserRepository cartRepository;
+	private final Jedis jedis = new Jedis("52.91.75.7", 10001);
+
+	public UserResource() {
+		jedis.auth("mypass");
+	}
 
 	@GetMapping("/users")
 	public List<User> retrieveAllusers() {
-		return cartRepository.findAll();
+		return jedis.keys("user:*")
+				.stream()
+				.map(k -> new User(Long.valueOf(k.split(":")[1]), jedis.get(k)))
+				.collect(Collectors.toList());
 	}
 
 	@GetMapping("/users/{id}")
-	public User retrievecart(@PathVariable long id) {
-		Optional<User> cart = cartRepository.findById(id);
-
-		if (!cart.isPresent())
+	public User retrieveUser(@PathVariable long id) {
+		String name = jedis.get("user:" + id);
+		if( name != null)
+			return new User(id, name);
+		else
 			throw new CartNotFoundException("id-" + id);
-
-		return cart.get();
 	}
 
 	@DeleteMapping("/users/{id}")
 	public void deletecart(@PathVariable long id) {
-		cartRepository.deleteById(id);
+		jedis.del("user:" + id);
 	}
 
 	@PostMapping("/users")
-	public ResponseEntity<Object> createcart(@RequestBody User cart) {
-		User savedcart = cartRepository.save(cart);
+	public ResponseEntity<Object> createUser(@RequestBody User user) {
+		Long counter = jedis.incr("user-counter");
+		user.setId(counter);
 
-		URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
-				.buildAndExpand(savedcart.getId()).toUri();
+		jedis.set("user:" + counter, user.getName());
 
-		return ResponseEntity.created(location).build();
+		return ResponseEntity.ok(user);
 
 	}
 	
 	@PutMapping("/users/{id}")
-	public ResponseEntity<Object> updatecart(@RequestBody User cart, @PathVariable long id) {
+	public ResponseEntity<Object> updateUser(@RequestBody User new_user, @PathVariable long id) {
 
-		Optional<User> cartOptional = cartRepository.findById(id);
+		String user = jedis.get("user:" + id);
 
-		if (!cartOptional.isPresent())
-			return ResponseEntity.notFound().build();
+		if (!user.isEmpty()) {
+			jedis.set("user:"  + id, new_user.getName());
+			return ResponseEntity.ok(new_user);
+		} else {
+			return ResponseEntity.noContent().build();
+		}
 
-		cart.setId(id);
-		
-		cartRepository.save(cart);
-
-		return ResponseEntity.noContent().build();
 	}
 
 }
