@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import redis.clients.jedis.Jedis;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,16 +30,18 @@ public class CartResource {
 
 	@GetMapping("/carts/{id}")
 	public Cart retrieveCart(@PathVariable String id) {
-		Map<String, String> items = jedis.hgetAll("cart:" + id);
-		String userid = items.remove("user");
-		User user = new User(getId(userid), jedis.get(userid));
+		Map<String, String> items = jedis.hgetAll("items:" + id);
+
+		Map<String, String> cart = jedis.hgetAll("cart:" + id);
+		String user_key = cart.get("user");
+		long user_id  = Long.valueOf(user_key.split(":")[1]);
+
+		User user = new User(user_id, jedis.get(user_key));
 
 		if (items.isEmpty())
 			throw new CartNotFoundException("id-" + id);
 
-		Cart cart = new Cart(Long.valueOf(id), user, items);
-
-		return cart;
+		return new Cart(Long.valueOf(id), user, items);
 	}
 
 	@DeleteMapping("/carts/{id}")
@@ -51,16 +54,21 @@ public class CartResource {
 		Long counter = jedis.incr("cart-counter");
 		cart.setId(counter);
 
-		addUserToList(cart.getItems(), cart.getUser());
+		jedis.hmset("items:"+counter, cart.getItems());
 
-		jedis.hmset(getKey(cart), cart.getItems());
+		Map<String, String> cartMap  = new HashMap<>();
+		cartMap.put("user", "user:" + cart.getUser().getId());
+		cartMap.put("items", "items:"+counter);
+
+		jedis.hmset("cart:"+counter, cartMap);
 		return ResponseEntity.ok(cart);
 	}
 
 	@PutMapping("/carts/{id}")
 	public ResponseEntity<Object> updateCart(@PathVariable String id, @RequestBody Cart new_cart) {
-		jedis.del(getKey(new_cart));
-		jedis.hmset(getKey(new_cart), new_cart.getItems());
+		jedis.del("items:" + id);
+		jedis.hmset("items:" + id, new_cart.getItems());
+
 		return ResponseEntity.ok(new_cart);
 	}
 
