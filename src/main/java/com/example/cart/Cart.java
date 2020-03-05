@@ -4,25 +4,13 @@ package com.example.cart;
 
 import com.example.user.User;
 
-import java.util.HashMap;
 import java.util.Map;
 
-//@Entity
-//@Table(name = "CART")
 public class Cart {
-//	@Id
-//	@GeneratedValue
 	private Long id;
 
-//	@ManyToOne
-//	@JoinColumn(name="cart", nullable=false)
 	private User user;
 
-//	@ElementCollection
-//	@CollectionTable(name = "cart_item_mapping",
-//			joinColumns = {@JoinColumn(name = "cart_id", referencedColumnName = "id")})
-//	@MapKeyColumn(name = "sku")
-//	@Column(name = "quantity")
 	private Map<String, String> items;
 	
 	public Cart() {
